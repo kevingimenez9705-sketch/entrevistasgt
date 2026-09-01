@@ -1,6 +1,5 @@
 const SEDES = ['Florida', 'Merlo', 'Adrogué'];
 const HORARIOS = ['9 a 13hs', '14 a 18hs', '9 a 18hs'];
-const ESTADOS = ['Postulado', 'Presente', 'Ausente', 'Cancelado'];
 const CUPO_POR_SEDE_Y_FECHA = 3;
 const STORAGE_KEY = 'turnos-seleccion:turnos-cache';
 
@@ -108,31 +107,6 @@ async function crearTurnoRemoto(turno) {
     return { ok: true };
   } catch (err) {
     console.error('No se pudo guardar el turno en Sheets:', err.message);
-    return { ok: false, error: err.message };
-  }
-}
-
-async function actualizarEstadoRemoto(id, estado) {
-  if (MODO_LOCAL) {
-    const t = state.turnos.find((x) => x.id === id);
-    if (t) t.estado = estado;
-    guardarCache(state.turnos);
-    return { ok: true };
-  }
-  try {
-    const res = await fetch(CONFIG.SHEETS_WEB_APP_URL, {
-      method: 'POST',
-      body: JSON.stringify({ action: 'actualizar', id, estado }),
-    });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = await res.json();
-    if (!data.ok) throw new Error(data.error || 'Error desconocido');
-    const t = state.turnos.find((x) => x.id === id);
-    if (t) t.estado = estado;
-    guardarCache(state.turnos);
-    return { ok: true };
-  } catch (err) {
-    console.error('No se pudo actualizar el estado en Sheets:', err.message);
     return { ok: false, error: err.message };
   }
 }
@@ -531,33 +505,9 @@ function renderTabla(turnos) {
       <td><span class="tag tag-${sedeSlug(t.sede)}">${t.sede}</span></td>
       <td>${formatDisplayDate(t.fecha)}</td>
       <td>${t.horario}</td>
-      <td>
-        <select class="estado-select estado-${estadoSlug(t.estado)}" data-id="${t.id}">
-          ${ESTADOS.map((e) => `<option value="${e}" ${e === t.estado ? 'selected' : ''}>${e}</option>`).join('')}
-        </select>
-      </td>
+      <td><span class="tag tag-estado-${estadoSlug(t.estado)}">${t.estado}</span></td>
     </tr>
   `).join('');
-
-  tbody.querySelectorAll('.estado-select').forEach((sel) => {
-    sel.addEventListener('change', () => updateEstado(sel.dataset.id, sel.value, sel));
-  });
-}
-
-async function updateEstado(id, estado, selectEl) {
-  selectEl.disabled = true;
-  const resultado = await actualizarEstadoRemoto(id, estado);
-  selectEl.disabled = false;
-
-  if (!resultado.ok) {
-    alert('No se pudo actualizar el estado en Google Sheets. Probá de nuevo.');
-    renderTabla(state.turnos);
-    return;
-  }
-
-  selectEl.className = `estado-select estado-${estadoSlug(estado)}`;
-  renderSummary(state.turnos);
-  renderCharts(state.turnos);
 }
 
 document.getElementById('filtro-sede').addEventListener('change', () => renderTabla(state.turnos));

@@ -97,7 +97,9 @@ function doGet(e) {
   return jsonOut_(turnos);
 }
 
-// --- Escritura: POST { action: 'crear' | 'actualizar', ... } ---
+// --- Escritura: POST { action: 'crear', ... } ---
+// El estado sólo se edita a mano en la hoja (con el desplegable de arriba),
+// no hay endpoint para cambiarlo desde afuera.
 
 function doPost(e) {
   let body;
@@ -108,7 +110,6 @@ function doPost(e) {
   }
 
   if (body.action === 'crear') return crearTurno_(body.turno || body);
-  if (body.action === 'actualizar') return actualizarEstado_(body.id, body.estado);
   return jsonOut_({ ok: false, error: 'Acción no soportada' });
 }
 
@@ -147,35 +148,3 @@ function crearTurno_(t) {
   }
 }
 
-function actualizarEstado_(id, estado) {
-  if (!id || !estado) return jsonOut_({ ok: false, error: 'Faltan id o estado' });
-  if (ESTADOS.indexOf(estado) === -1) return jsonOut_({ ok: false, error: 'Estado inválido' });
-
-  const lock = LockService.getScriptLock();
-  lock.waitLock(5000);
-  try {
-    const sheet = getSheet_();
-    const colIdx = mapaColumnas_(headers_(sheet));
-    const colId = colIdx['id'];
-    const colEstado = colIdx['estado'];
-    if (colId === undefined || colEstado === undefined) {
-      return jsonOut_({ ok: false, error: 'Faltan columnas ID/Estado' });
-    }
-
-    const lastRow = sheet.getLastRow();
-    if (lastRow < 2) return jsonOut_({ ok: false, error: 'Turno no encontrado' });
-
-    const ids = sheet.getRange(2, colId + 1, lastRow - 1, 1).getValues();
-    for (let i = 0; i < ids.length; i++) {
-      if (String(ids[i][0]) === String(id)) {
-        sheet.getRange(i + 2, colEstado + 1).setValue(estado);
-        return jsonOut_({ ok: true });
-      }
-    }
-    return jsonOut_({ ok: false, error: 'Turno no encontrado' });
-  } catch (err) {
-    return jsonOut_({ ok: false, error: err.message });
-  } finally {
-    lock.releaseLock();
-  }
-}

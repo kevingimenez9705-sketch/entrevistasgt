@@ -51,4 +51,4 @@ Subí los archivos a GitHub y activá GitHub Pages, o desplegá con Vercel — n
 ## Funcionalidad
 
 - **Reservar turno**: nombre, apellido, mail corporativo, celular, sede, fecha (calendario limitado a **lunes a viernes**, hasta 3 turnos por sede/día) y horario.
-- **Panel**: resumen numérico, dos gráficos (estado de postulantes y turnos por sede) y una tabla con filtros donde se marca Presente/Ausente/Cancelado — el cambio se guarda en la misma Google Sheet.
+- **Panel**: resumen numérico, dos gráficos (estado de postulantes y turnos por sede) y una tabla con filtros. El **Estado se edita solo desde la Google Sheet** (columna con desplegable) — la página lo muestra de solo lectura y lo trae al sincronizar.
