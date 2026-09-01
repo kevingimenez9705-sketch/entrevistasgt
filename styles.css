@@ -86,11 +86,10 @@ body {
 
 .brand-logo {
   height: 44px;
-  width: 44px;
-  border-radius: 50%;
-  object-fit: cover;
+  width: auto;
+  max-width: 220px;
+  object-fit: contain;
   flex-shrink: 0;
-  box-shadow: var(--shadow-sm);
 }
 
 .brand-text h1 {
@@ -638,5 +637,5 @@ tr:last-child td { border-bottom: none; }
   .calendar { padding: 10px; }
   .cal-day { font-size: 12px; }
   .brand-text h1 { font-size: 18px; }
-  .brand-logo { height: 38px; width: 38px; }
+  .brand-logo { height: 34px; width: auto; max-width: 150px; }
 }
