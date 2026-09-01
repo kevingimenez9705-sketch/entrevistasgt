@@ -5,6 +5,7 @@
 // ID | Nombre | Apellido | Mail | Celular | Sede | Fecha | Horario | Estado | CreadoEn
 
 const SHEET_NAME = 'Turnos';
+const ESTADOS = ['Postulado', 'Presente', 'Ausente', 'Cancelado'];
 
 function getSheet_() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -13,6 +14,18 @@ function getSheet_() {
 
 function headers_(sheet) {
   return sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+}
+
+function normalizar_(s) {
+  return String(s || '').trim().toLowerCase();
+}
+
+// Mapa "encabezado normalizado" -> índice de columna (0-based).
+// Así una columna "Fecha " (con espacio de más) o "fecha" en minúscula igual matchea.
+function mapaColumnas_(heads) {
+  const mapa = {};
+  heads.forEach((h, i) => { mapa[normalizar_(h)] = i; });
+  return mapa;
 }
 
 function jsonOut_(obj) {
@@ -26,6 +39,29 @@ function formatearFecha_(valor) {
   return String(valor || '');
 }
 
+// --- Validación de Estado en la hoja (desplegable, evita errores de tipeo) ---
+// Se aplica sola cada vez que se abre la hoja. Para aplicarla ya mismo, sin
+// esperar a reabrir el archivo, corré esta función una vez desde el editor
+// (▶ Ejecutar, eligiendo "aplicarValidacionEstado_").
+
+function onOpen() {
+  aplicarValidacionEstado_();
+}
+
+function aplicarValidacionEstado_() {
+  const sheet = getSheet_();
+  const colIdx = mapaColumnas_(headers_(sheet));
+  const col = colIdx['estado'];
+  if (col === undefined) return;
+
+  const filas = Math.max(sheet.getMaxRows() - 1, 500);
+  const regla = SpreadsheetApp.newDataValidation()
+    .requireValueInList(ESTADOS, true)
+    .setAllowInvalid(false)
+    .build();
+  sheet.getRange(2, col + 1, filas, 1).setDataValidation(regla);
+}
+
 // --- Lectura: GET ?action=listar ---
 
 function doGet(e) {
@@ -37,24 +73,26 @@ function doGet(e) {
   if (lastRow < 2) return jsonOut_([]);
 
   const heads = headers_(sheet);
+  const colIdx = mapaColumnas_(heads);
   const filas = sheet.getRange(2, 1, lastRow - 1, heads.length).getValues();
 
-  const turnos = filas.map((fila) => {
-    const obj = {};
-    heads.forEach((h, i) => { obj[h] = fila[i]; });
-    return {
-      id: String(obj.ID || ''),
-      nombre: obj.Nombre || '',
-      apellido: obj.Apellido || '',
-      mail: obj.Mail || '',
-      celular: obj.Celular || '',
-      sede: obj.Sede || '',
-      fecha: formatearFecha_(obj.Fecha),
-      horario: obj.Horario || '',
-      estado: obj.Estado || 'Postulado',
-      creadoEn: obj.CreadoEn || '',
-    };
-  }).filter((t) => t.id);
+  function val(fila, campo) {
+    const i = colIdx[campo];
+    return i === undefined ? '' : fila[i];
+  }
+
+  const turnos = filas.map((fila) => ({
+    id: String(val(fila, 'id') || ''),
+    nombre: val(fila, 'nombre') || '',
+    apellido: val(fila, 'apellido') || '',
+    mail: val(fila, 'mail') || '',
+    celular: val(fila, 'celular') || '',
+    sede: val(fila, 'sede') || '',
+    fecha: formatearFecha_(val(fila, 'fecha')),
+    horario: val(fila, 'horario') || '',
+    estado: val(fila, 'estado') || 'Postulado',
+    creadoEn: val(fila, 'creadoen') || '',
+  })).filter((t) => t.id);
 
   return jsonOut_(turnos);
 }
@@ -75,17 +113,32 @@ function doPost(e) {
 }
 
 function crearTurno_(t) {
+  const valores = {
+    id: t.id, nombre: t.nombre, apellido: t.apellido, mail: t.mail, celular: t.celular,
+    sede: t.sede, fecha: t.fecha, horario: t.horario, estado: t.estado || 'Postulado', creadoen: t.creadoEn,
+  };
+
+  const obligatorios = ['id', 'nombre', 'apellido', 'mail', 'celular', 'sede', 'fecha', 'horario'];
+  const faltantes = obligatorios.filter((c) => !valores[c]);
+  if (faltantes.length) {
+    return jsonOut_({ ok: false, error: 'Faltan datos obligatorios: ' + faltantes.join(', ') });
+  }
+
   const lock = LockService.getScriptLock();
   lock.waitLock(5000);
   try {
     const sheet = getSheet_();
     const heads = headers_(sheet);
-    const mapa = {
-      ID: t.id, Nombre: t.nombre, Apellido: t.apellido, Mail: t.mail, Celular: t.celular,
-      Sede: t.sede, Fecha: t.fecha, Horario: t.horario, Estado: t.estado || 'Postulado', CreadoEn: t.creadoEn,
-    };
-    const fila = heads.map((h) => (mapa[h] !== undefined ? mapa[h] : ''));
+    const colIdx = mapaColumnas_(heads);
+
+    const fila = new Array(heads.length).fill('');
+    Object.keys(valores).forEach((campo) => {
+      const i = colIdx[campo];
+      if (i !== undefined) fila[i] = valores[campo];
+    });
+
     sheet.appendRow(fila);
+    aplicarValidacionEstado_();
     return jsonOut_({ ok: true });
   } catch (err) {
     return jsonOut_({ ok: false, error: err.message });
@@ -95,22 +148,27 @@ function crearTurno_(t) {
 }
 
 function actualizarEstado_(id, estado) {
+  if (!id || !estado) return jsonOut_({ ok: false, error: 'Faltan id o estado' });
+  if (ESTADOS.indexOf(estado) === -1) return jsonOut_({ ok: false, error: 'Estado inválido' });
+
   const lock = LockService.getScriptLock();
   lock.waitLock(5000);
   try {
     const sheet = getSheet_();
-    const heads = headers_(sheet);
-    const colId = heads.indexOf('ID') + 1;
-    const colEstado = heads.indexOf('Estado') + 1;
-    if (!colId || !colEstado) return jsonOut_({ ok: false, error: 'Faltan columnas ID/Estado' });
+    const colIdx = mapaColumnas_(headers_(sheet));
+    const colId = colIdx['id'];
+    const colEstado = colIdx['estado'];
+    if (colId === undefined || colEstado === undefined) {
+      return jsonOut_({ ok: false, error: 'Faltan columnas ID/Estado' });
+    }
 
     const lastRow = sheet.getLastRow();
     if (lastRow < 2) return jsonOut_({ ok: false, error: 'Turno no encontrado' });
 
-    const ids = sheet.getRange(2, colId, lastRow - 1, 1).getValues();
+    const ids = sheet.getRange(2, colId + 1, lastRow - 1, 1).getValues();
     for (let i = 0; i < ids.length; i++) {
       if (String(ids[i][0]) === String(id)) {
-        sheet.getRange(i + 2, colEstado).setValue(estado);
+        sheet.getRange(i + 2, colEstado + 1).setValue(estado);
         return jsonOut_({ ok: true });
       }
     }

@@ -20,6 +20,8 @@ En tu hoja ([link](https://docs.google.com/spreadsheets/d/1ACEhOwCwAg9_216w9vRgJ
 
 `Estado` acepta: `Postulado`, `Presente`, `Ausente`, `Cancelado`. Si alguien lo cambia manualmente desde Drive, la página lo refleja al sincronizar (botón **Actualizar desde Sheets** en el Panel, o al recargar).
 
+El script deja la columna `Estado` como desplegable (Data validation) para que no se pueda tipear un valor inválido desde Drive. Se aplica solo al abrir la hoja; para activarlo ya mismo sin esperar, andá a Apps Script y corré `aplicarValidacionEstado_` una vez (▶ Ejecutar).
+
 ## 2. Conectar con Apps Script
 
 1. Abrí la hoja → **Extensiones → Apps Script**.

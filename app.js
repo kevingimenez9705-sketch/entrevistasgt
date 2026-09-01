@@ -405,7 +405,7 @@ document.getElementById('form-turno').addEventListener('submit', async (e) => {
     return;
   }
 
-  msg.textContent = `Turno confirmado para ${nombre} ${apellido} el ${formatDisplayDate(state.fecha)} (${horario}) en ${state.sede}.`;
+  msg.textContent = `Turno registrado para ${nombre} ${apellido} el ${formatDisplayDate(state.fecha)} (${horario}) en ${state.sede}. Te vamos a confirmar el turno por Google Calendar.`;
   msg.classList.add('is-success');
   resetForm();
 });
