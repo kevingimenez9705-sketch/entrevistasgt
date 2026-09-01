@@ -241,23 +241,20 @@ function renderCalendar() {
   const label = state.mesActual.toLocaleDateString('es-AR', { month: 'long', year: 'numeric' });
   document.getElementById('cal-month-label').textContent = label.charAt(0).toUpperCase() + label.slice(1);
 
+  const firstDay = new Date(year, month, 1);
+  const startOffset = (firstDay.getDay() + 6) % 7; // semana arranca en lunes
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
+  for (let i = 0; i < startOffset; i++) {
+    const empty = document.createElement('div');
+    empty.className = 'cal-day is-empty';
+    grid.appendChild(empty);
+  }
+
   for (let day = 1; day <= daysInMonth; day++) {
     const d = new Date(year, month, day);
-    if (esFinDeSemana(d)) continue; // no se muestran sábados ni domingos
-
-    if (grid.children.length === 0) {
-      const offsetLunes = (d.getDay() + 6) % 7; // 0 = lunes
-      for (let i = 0; i < offsetLunes; i++) {
-        const empty = document.createElement('div');
-        empty.className = 'cal-day is-empty';
-        grid.appendChild(empty);
-      }
-    }
-
     const iso = toISODate(d);
     const btn = document.createElement('button');
     btn.type = 'button';
@@ -265,10 +262,14 @@ function renderCalendar() {
     btn.textContent = String(day);
 
     const isPast = d < today;
+    const isWeekend = esFinDeSemana(d);
     const count = state.sede ? contarOcupados(turnos, state.sede, iso) : 0;
     const isFull = count >= CUPO_POR_SEDE_Y_FECHA;
 
-    if (isPast) {
+    if (isWeekend) {
+      btn.classList.add('is-weekend');
+      btn.disabled = true;
+    } else if (isPast) {
       btn.classList.add('is-past');
       btn.disabled = true;
     } else if (isFull) {
