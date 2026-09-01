@@ -410,10 +410,10 @@ function renderSummary(turnos) {
 }
 
 const PALETA_ESTADOS = {
-  Postulado: '#5B6270',
+  Postulado: '#8A93A3',
   Presente: '#2F8558',
   Ausente: '#C24A3D',
-  Cancelado: '#8A93A3',
+  Cancelado: '#C7D0DA',
 };
 
 const PALETA_SEDES = {
@@ -421,6 +421,54 @@ const PALETA_SEDES = {
   Merlo: '#3F7D5C',
   Adrogué: '#B9862B',
 };
+
+// Dibuja el total de postulantes en el centro de la dona.
+const pluginCentro = {
+  id: 'centro-total',
+  afterDraw(chart) {
+    if (chart.config.type !== 'doughnut') return;
+    const { ctx, chartArea } = chart;
+    const total = chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
+    const cx = (chartArea.left + chartArea.right) / 2;
+    const cy = (chartArea.top + chartArea.bottom) / 2;
+    ctx.save();
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#0E2C4A';
+    ctx.font = '700 26px Georgia, serif';
+    ctx.fillText(String(total), cx, cy - 8);
+    ctx.fillStyle = '#94A0AC';
+    ctx.font = '600 11px -apple-system, sans-serif';
+    ctx.fillText(total === 1 ? 'postulante' : 'postulantes', cx, cy + 14);
+    ctx.restore();
+  },
+};
+
+// Escribe el valor arriba de cada barra.
+const pluginValoresBarra = {
+  id: 'valores-barra',
+  afterDatasetsDraw(chart) {
+    const { ctx } = chart;
+    const meta = chart.getDatasetMeta(0);
+    ctx.save();
+    ctx.fillStyle = '#57616F';
+    ctx.font = '700 12px -apple-system, sans-serif';
+    ctx.textAlign = 'center';
+    meta.data.forEach((bar, i) => {
+      const val = chart.data.datasets[0].data[i];
+      if (val > 0) ctx.fillText(String(val), bar.x, bar.y - 8);
+    });
+    ctx.restore();
+  },
+};
+
+function degradado(ctx, chartArea, color) {
+  if (!chartArea) return color;
+  const g = ctx.createLinearGradient(0, chartArea.bottom, 0, chartArea.top);
+  g.addColorStop(0, color + 'B3');
+  g.addColorStop(1, color);
+  return g;
+}
 
 function renderCharts(turnos) {
   const ctxEstados = document.getElementById('chart-estados');
@@ -440,6 +488,8 @@ function renderCharts(turnos) {
 
   if (typeof Chart === 'undefined') return;
 
+  const totalEstados = Object.values(countsEstado).reduce((a, b) => a + b, 0);
+
   if (chartEstados) chartEstados.destroy();
   chartEstados = new Chart(ctxEstados, {
     type: 'doughnut',
@@ -448,16 +498,32 @@ function renderCharts(turnos) {
       datasets: [{
         data: Object.values(countsEstado),
         backgroundColor: Object.keys(countsEstado).map((k) => PALETA_ESTADOS[k]),
-        borderWidth: 0,
+        borderColor: '#fff',
+        borderWidth: 2,
+        spacing: 3,
+        hoverOffset: 6,
       }],
     },
     options: {
       responsive: true,
+      maintainAspectRatio: true,
+      cutout: '68%',
       plugins: {
-        legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 11.5 } } },
+        legend: { position: 'bottom', labels: { boxWidth: 10, padding: 14, font: { size: 11.5 } } },
+        tooltip: {
+          backgroundColor: '#0E2C4A',
+          padding: 10,
+          cornerRadius: 8,
+          callbacks: {
+            label(item) {
+              const pct = totalEstados ? Math.round((item.raw / totalEstados) * 100) : 0;
+              return ` ${item.label}: ${item.raw} (${pct}%)`;
+            },
+          },
+        },
       },
-      cutout: '62%',
     },
+    plugins: [pluginCentro],
   });
 
   if (chartSedes) chartSedes.destroy();
@@ -467,18 +533,34 @@ function renderCharts(turnos) {
       labels: Object.keys(countsSede),
       datasets: [{
         data: Object.values(countsSede),
-        backgroundColor: Object.keys(countsSede).map((k) => PALETA_SEDES[k]),
-        borderRadius: 6,
-        maxBarThickness: 46,
+        backgroundColor(context) {
+          const key = Object.keys(countsSede)[context.dataIndex];
+          return degradado(context.chart.ctx, context.chart.chartArea, PALETA_SEDES[key]);
+        },
+        borderRadius: 8,
+        maxBarThickness: 52,
       }],
     },
     options: {
       responsive: true,
-      plugins: { legend: { display: false } },
+      maintainAspectRatio: true,
+      layout: { padding: { top: 22 } },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#0E2C4A',
+          padding: 10,
+          cornerRadius: 8,
+          displayColors: false,
+          callbacks: { label: (item) => ` ${item.raw} turno${item.raw === 1 ? '' : 's'}` },
+        },
+      },
       scales: {
-        y: { beginAtZero: true, ticks: { precision: 0 } },
+        y: { beginAtZero: true, ticks: { precision: 0 }, grid: { color: '#EEF1F5' } },
+        x: { grid: { display: false } },
       },
     },
+    plugins: [pluginValoresBarra],
   });
 }
 
