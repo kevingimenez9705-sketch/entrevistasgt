@@ -5,7 +5,7 @@ const CUPO_POR_SEDE_Y_FECHA = 3;
 const STORAGE_KEY = 'turnos-seleccion:turnos-cache';
 
 const CONFIG = (typeof APP_CONFIG !== 'undefined') ? APP_CONFIG : {};
-const MODO_LOCAL = !CONFIG.N8N_LISTAR_URL;
+const MODO_LOCAL = !CONFIG.SHEETS_WEB_APP_URL;
 
 const state = {
   sede: null,
@@ -71,7 +71,8 @@ async function obtenerTurnos({ silencioso = false } = {}) {
 
   if (!silencioso) setSyncStatus('loading', 'Sincronizando…');
   try {
-    const res = await fetch(CONFIG.N8N_LISTAR_URL, { method: 'GET' });
+    const url = `${CONFIG.SHEETS_WEB_APP_URL}?action=listar`;
+    const res = await fetch(url, { method: 'GET' });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
     const lista = Array.isArray(data) ? data : (data.turnos || []);
@@ -93,12 +94,15 @@ async function crearTurnoRemoto(turno) {
     return { ok: true };
   }
   try {
-    const res = await fetch(CONFIG.N8N_CREAR_URL, {
+    // Sin header Content-Type: así el POST queda como "simple request" y
+    // Apps Script lo puede recibir sin problemas de CORS (no soporta preflight OPTIONS).
+    const res = await fetch(CONFIG.SHEETS_WEB_APP_URL, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(turno),
+      body: JSON.stringify({ action: 'crear', turno }),
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error || 'Error desconocido');
     state.turnos.push(turno);
     guardarCache(state.turnos);
     return { ok: true };
@@ -116,12 +120,13 @@ async function actualizarEstadoRemoto(id, estado) {
     return { ok: true };
   }
   try {
-    const res = await fetch(CONFIG.N8N_ACTUALIZAR_URL, {
+    const res = await fetch(CONFIG.SHEETS_WEB_APP_URL, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id, estado }),
+      body: JSON.stringify({ action: 'actualizar', id, estado }),
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error || 'Error desconocido');
     const t = state.turnos.find((x) => x.id === id);
     if (t) t.estado = estado;
     guardarCache(state.turnos);

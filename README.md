@@ -1,34 +1,32 @@
 # Turnos de Selección
 
-Página para reservar turno de selección de personal en Florida, Merlo o Adrogué. Los datos se guardan en una **Google Sheet** (vía un workflow de n8n) para que se puedan cargar y editar tanto desde la página como directamente desde Drive.
+Página para reservar turno de selección de personal en Florida, Merlo o Adrogué. Los datos se guardan en una **Google Sheet**, conectada directo por un **Google Apps Script** (sin servicios de por medio) — se puede cargar y editar el estado tanto desde la página como directamente desde Drive.
 
 ## Archivos
 
 - `index.html`, `styles.css`, `app.js` — la página.
-- `config.js` — acá van las URLs de tus 3 webhooks de n8n.
+- `config.js` — acá va la URL de tu Web App de Apps Script.
+- `Code.gs` — el script que se pega en el Google Sheet (no se sube al hosting de la página).
 
 ## 1. Preparar la Google Sheet
 
-En tu hoja ([link](https://docs.google.com/spreadsheets/d/1ACEhOwCwAg9_216w9vRgJelp2fRQxdZBknbBoirVrVs/edit)) dejá una fila de encabezados con estas columnas exactas:
+En tu hoja ([link](https://docs.google.com/spreadsheets/d/1ACEhOwCwAg9_216w9vRgJelp2fRQxdZBknbBoirVrVs/edit)):
+
+1. Nombrá la pestaña **"Turnos"**.
+2. Poné esta fila de encabezados exacta en la fila 1:
 
 | ID | Nombre | Apellido | Mail | Celular | Sede | Fecha | Horario | Estado | CreadoEn |
 |----|--------|----------|------|---------|------|-------|---------|--------|----------|
 
-`Estado` acepta: `Postulado`, `Presente`, `Ausente`, `Cancelado`. Si alguien lo cambia manualmente desde Drive, la página lo va a reflejar la próxima vez que sincronice (botón **Actualizar desde Sheets** en el Panel, o al recargar).
+`Estado` acepta: `Postulado`, `Presente`, `Ausente`, `Cancelado`. Si alguien lo cambia manualmente desde Drive, la página lo refleja al sincronizar (botón **Actualizar desde Sheets** en el Panel, o al recargar).
 
-## 2. Workflow de n8n (3 webhooks)
+## 2. Conectar con Apps Script
 
-Creá un workflow con 3 disparadores **Webhook**, cada uno conectado a un nodo **Google Sheets** apuntando a esa hoja:
-
-1. **Listar** — `GET /turnos-listar` → nodo Google Sheets, operación *Read/Get rows* → responder con el array de filas (JSON).
-2. **Crear** — `POST /turnos-crear` → nodo Google Sheets, operación *Append row* → guarda el body recibido (id, nombre, apellido, mail, celular, sede, fecha, horario, estado, creadoEn) → responder `{ "ok": true }`.
-3. **Actualizar estado** — `POST /turnos-actualizar-estado` → nodo Google Sheets, operación *Update row* (matching por columna `ID`) → actualiza solo `Estado` con el body `{ id, estado }` → responder `{ "ok": true }`.
-
-En cada nodo Webhook:
-- Modo de respuesta: **Using 'Respond to Webhook' Node**.
-- **Allowed Origins (CORS)**: `*` (o el dominio donde publiques la página).
-
-Activá el workflow y copiá las 3 URLs de producción.
+1. Abrí la hoja → **Extensiones → Apps Script**.
+2. Borrá el contenido de `Código.gs` y pegá el contenido de `Code.gs` de este repo.
+3. Guardá, y arriba a la derecha: **Implementar → Nueva implementación**.
+4. Tipo: **Aplicación web**. Ejecutar como: **Yo**. Quién tiene acceso: **Cualquier usuario**.
+5. Implementar → autorizá los permisos (es tu propia hoja) → copiá la URL que termina en `/exec`.
 
 ## 3. Conectar la página
 
@@ -36,17 +34,17 @@ Editá `config.js`:
 
 ```js
 const APP_CONFIG = {
-  N8N_LISTAR_URL: 'https://tu-n8n.com/webhook/turnos-listar',
-  N8N_CREAR_URL: 'https://tu-n8n.com/webhook/turnos-crear',
-  N8N_ACTUALIZAR_URL: 'https://tu-n8n.com/webhook/turnos-actualizar-estado',
+  SHEETS_WEB_APP_URL: 'https://script.google.com/macros/s/XXXXXXXX/exec',
 };
 ```
 
-Si dejás las URLs vacías, la página funciona en modo local (`localStorage`, solo en ese navegador) — útil para probar el diseño sin depender de n8n.
+Vacío = modo local (`localStorage`, solo en ese navegador), útil para probar el diseño sin depender de la hoja.
+
+> Cada vez que edites `Code.gs` en Apps Script tenés que hacer **Implementar → Gestionar implementaciones → editar (lápiz) → Nueva versión** para que los cambios se reflejen en la URL ya publicada.
 
 ## 4. Publicar
 
-Subí los 4 archivos a GitHub y activá GitHub Pages, o desplegá con Vercel — no requiere build.
+Subí los archivos a GitHub y activá GitHub Pages, o desplegá con Vercel — no requiere build.
 
 ## Funcionalidad
 
