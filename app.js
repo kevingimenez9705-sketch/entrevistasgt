@@ -2,29 +2,134 @@ const SEDES = ['Florida', 'Merlo', 'Adrogué'];
 const HORARIOS = ['9 a 13hs', '14 a 18hs', '9 a 18hs'];
 const ESTADOS = ['Postulado', 'Presente', 'Ausente', 'Cancelado'];
 const CUPO_POR_SEDE_Y_FECHA = 3;
-const STORAGE_KEY = 'turnos-seleccion:turnos';
+const STORAGE_KEY = 'turnos-seleccion:turnos-cache';
+
+const CONFIG = (typeof APP_CONFIG !== 'undefined') ? APP_CONFIG : {};
+const MODO_LOCAL = !CONFIG.N8N_LISTAR_URL;
 
 const state = {
   sede: null,
   fecha: null,
   mesActual: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
-  ocupacionMes: {},
+  turnos: [],
+  cargando: false,
 };
 
-// --- Almacenamiento local ---
+let chartEstados = null;
+let chartSedes = null;
 
-function cargarTurnos() {
+// --- Estado de sincronización ---
+
+function setSyncStatus(kind, label) {
+  const el = document.getElementById('sync-status');
+  const lbl = document.getElementById('sync-status-label');
+  el.className = `sync-status is-${kind}`;
+  lbl.textContent = label;
+}
+
+// --- Almacenamiento (cache local + backend en Sheets vía n8n) ---
+
+function cargarCache() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     return raw ? JSON.parse(raw) : [];
   } catch (err) {
-    console.error('No se pudo leer el almacenamiento local:', err.message);
+    console.error('No se pudo leer la cache local:', err.message);
     return [];
   }
 }
 
-function guardarTurnos(turnos) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(turnos));
+function guardarCache(turnos) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(turnos));
+  } catch (err) {
+    console.error('No se pudo guardar la cache local:', err.message);
+  }
+}
+
+function normalizarTurno(raw) {
+  return {
+    id: String(raw.id ?? raw.ID ?? ''),
+    nombre: raw.nombre ?? raw.Nombre ?? '',
+    apellido: raw.apellido ?? raw.Apellido ?? '',
+    mail: raw.mail ?? raw.Mail ?? raw['Mail corporativo'] ?? '',
+    celular: raw.celular ?? raw.Celular ?? '',
+    sede: raw.sede ?? raw.Sede ?? '',
+    fecha: raw.fecha ?? raw.Fecha ?? '',
+    horario: raw.horario ?? raw.Horario ?? '',
+    estado: raw.estado ?? raw.Estado ?? 'Postulado',
+    creadoEn: raw.creadoEn ?? raw['Creado el'] ?? new Date().toISOString(),
+  };
+}
+
+async function obtenerTurnos({ silencioso = false } = {}) {
+  if (MODO_LOCAL) {
+    state.turnos = cargarCache();
+    setSyncStatus('error', 'Modo local (sin Google Sheets)');
+    return state.turnos;
+  }
+
+  if (!silencioso) setSyncStatus('loading', 'Sincronizando…');
+  try {
+    const res = await fetch(CONFIG.N8N_LISTAR_URL, { method: 'GET' });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    const lista = Array.isArray(data) ? data : (data.turnos || []);
+    state.turnos = lista.map(normalizarTurno);
+    guardarCache(state.turnos);
+    setSyncStatus('ok', 'Sincronizado con Google Sheets');
+  } catch (err) {
+    console.error('No se pudo leer la hoja de cálculo:', err.message);
+    state.turnos = cargarCache();
+    setSyncStatus('error', 'Sin conexión — mostrando última copia');
+  }
+  return state.turnos;
+}
+
+async function crearTurnoRemoto(turno) {
+  if (MODO_LOCAL) {
+    state.turnos.push(turno);
+    guardarCache(state.turnos);
+    return { ok: true };
+  }
+  try {
+    const res = await fetch(CONFIG.N8N_CREAR_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(turno),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    state.turnos.push(turno);
+    guardarCache(state.turnos);
+    return { ok: true };
+  } catch (err) {
+    console.error('No se pudo guardar el turno en Sheets:', err.message);
+    return { ok: false, error: err.message };
+  }
+}
+
+async function actualizarEstadoRemoto(id, estado) {
+  if (MODO_LOCAL) {
+    const t = state.turnos.find((x) => x.id === id);
+    if (t) t.estado = estado;
+    guardarCache(state.turnos);
+    return { ok: true };
+  }
+  try {
+    const res = await fetch(CONFIG.N8N_ACTUALIZAR_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, estado }),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const t = state.turnos.find((x) => x.id === id);
+    if (t) t.estado = estado;
+    guardarCache(state.turnos);
+    return { ok: true };
+  } catch (err) {
+    console.error('No se pudo actualizar el estado en Sheets:', err.message);
+    return { ok: false, error: err.message };
+  }
 }
 
 function generarId() {
@@ -60,6 +165,11 @@ function escapeHtml(str) {
   return div.innerHTML;
 }
 
+function esFinDeSemana(d) {
+  const day = d.getDay(); // 0 domingo, 6 sábado
+  return day === 0 || day === 6;
+}
+
 function contarOcupados(turnos, sede, fecha) {
   return turnos.filter((t) => t.sede === sede && t.fecha === fecha && t.estado !== 'Cancelado').length;
 }
@@ -67,7 +177,7 @@ function contarOcupados(turnos, sede, fecha) {
 // --- Tabs ---
 
 document.querySelectorAll('.tab').forEach((tab) => {
-  tab.addEventListener('click', () => {
+  tab.addEventListener('click', async () => {
     document.querySelectorAll('.tab').forEach((t) => {
       t.classList.remove('is-active');
       t.setAttribute('aria-selected', 'false');
@@ -78,8 +188,16 @@ document.querySelectorAll('.tab').forEach((tab) => {
     document.querySelectorAll('.view').forEach((v) => v.classList.remove('is-active'));
     document.getElementById(`view-${tab.dataset.view}`).classList.add('is-active');
 
-    if (tab.dataset.view === 'panel') renderPanel();
+    if (tab.dataset.view === 'panel') {
+      await obtenerTurnos();
+      renderPanel();
+    }
   });
+});
+
+document.getElementById('btn-refrescar').addEventListener('click', async () => {
+  await obtenerTurnos();
+  renderPanel();
 });
 
 // --- Selección de sede ---
@@ -105,33 +223,36 @@ function selectSede(sede) {
   renderCalendar();
 }
 
-// --- Calendario ---
+// --- Calendario (solo días hábiles, lunes a viernes) ---
 
 function renderCalendar() {
   const grid = document.getElementById('calendar-grid');
   grid.innerHTML = '';
 
-  const turnos = cargarTurnos();
+  const turnos = state.turnos;
   const year = state.mesActual.getFullYear();
   const month = state.mesActual.getMonth();
 
   const label = state.mesActual.toLocaleDateString('es-AR', { month: 'long', year: 'numeric' });
   document.getElementById('cal-month-label').textContent = label.charAt(0).toUpperCase() + label.slice(1);
 
-  const firstDay = new Date(year, month, 1);
-  const startOffset = (firstDay.getDay() + 6) % 7; // semana arranca en lunes
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  for (let i = 0; i < startOffset; i++) {
-    const empty = document.createElement('div');
-    empty.className = 'cal-day is-empty';
-    grid.appendChild(empty);
-  }
-
   for (let day = 1; day <= daysInMonth; day++) {
     const d = new Date(year, month, day);
+    if (esFinDeSemana(d)) continue; // no se muestran sábados ni domingos
+
+    if (grid.children.length === 0) {
+      const offsetLunes = (d.getDay() + 6) % 7; // 0 = lunes
+      for (let i = 0; i < offsetLunes; i++) {
+        const empty = document.createElement('div');
+        empty.className = 'cal-day is-empty';
+        grid.appendChild(empty);
+      }
+    }
+
     const iso = toISODate(d);
     const btn = document.createElement('button');
     btn.type = 'button';
@@ -175,7 +296,7 @@ function selectFecha(iso) {
   state.fecha = iso;
   renderCalendar();
 
-  const count = contarOcupados(cargarTurnos(), state.sede, iso);
+  const count = contarOcupados(state.turnos, state.sede, iso);
   const note = document.getElementById('occupancy-note');
   note.hidden = false;
   note.textContent = `${count} de ${CUPO_POR_SEDE_Y_FECHA} turnos ocupados en ${state.sede} el ${formatDisplayDate(iso)}.`;
@@ -186,7 +307,7 @@ function selectFecha(iso) {
 
 // --- Formulario ---
 
-['nombre', 'apellido'].forEach((id) => {
+['nombre', 'apellido', 'mail', 'celular'].forEach((id) => {
   document.getElementById(id).addEventListener('input', updateSubmitState);
 });
 
@@ -194,17 +315,34 @@ document.querySelectorAll('input[name="horario"]').forEach((r) => {
   r.addEventListener('change', updateSubmitState);
 });
 
+function mailValido(v) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
+}
+
+function celularValido(v) {
+  return v.replace(/\D/g, '').length >= 8;
+}
+
 function updateSubmitState() {
   const nombre = document.getElementById('nombre').value.trim();
   const apellido = document.getElementById('apellido').value.trim();
+  const mail = document.getElementById('mail').value.trim();
+  const celular = document.getElementById('celular').value.trim();
   const horario = document.querySelector('input[name="horario"]:checked');
-  const ok = Boolean(nombre && apellido && state.sede && state.fecha && horario);
+  const ok = Boolean(
+    nombre && apellido &&
+    mail && mailValido(mail) &&
+    celular && celularValido(celular) &&
+    state.sede && state.fecha && horario
+  );
   document.getElementById('btn-submit').disabled = !ok;
 }
 
 function resetForm() {
   document.getElementById('nombre').value = '';
   document.getElementById('apellido').value = '';
+  document.getElementById('mail').value = '';
+  document.getElementById('celular').value = '';
   document.querySelectorAll('input[name="horario"]').forEach((r) => { r.checked = false; });
   state.fecha = null;
   document.getElementById('horario-field').hidden = true;
@@ -213,19 +351,20 @@ function resetForm() {
   renderCalendar();
 }
 
-document.getElementById('form-turno').addEventListener('submit', (e) => {
+document.getElementById('form-turno').addEventListener('submit', async (e) => {
   e.preventDefault();
 
   const msg = document.getElementById('form-message');
+  const btn = document.getElementById('btn-submit');
   msg.className = 'form-message';
 
   const nombre = document.getElementById('nombre').value.trim();
   const apellido = document.getElementById('apellido').value.trim();
+  const mail = document.getElementById('mail').value.trim();
+  const celular = document.getElementById('celular').value.trim();
   const horario = document.querySelector('input[name="horario"]:checked').value;
 
-  const turnos = cargarTurnos();
-  const ocupados = contarOcupados(turnos, state.sede, state.fecha);
-
+  const ocupados = contarOcupados(state.turnos, state.sede, state.fecha);
   if (ocupados >= CUPO_POR_SEDE_Y_FECHA) {
     msg.textContent = 'Ese cupo se completó recién. Elegí otra fecha.';
     msg.classList.add('is-error');
@@ -233,17 +372,32 @@ document.getElementById('form-turno').addEventListener('submit', (e) => {
     return;
   }
 
-  turnos.push({
+  const turno = {
     id: generarId(),
     nombre,
     apellido,
+    mail,
+    celular,
     sede: state.sede,
     fecha: state.fecha,
     horario,
     estado: 'Postulado',
     creadoEn: new Date().toISOString(),
-  });
-  guardarTurnos(turnos);
+  };
+
+  btn.disabled = true;
+  btn.textContent = 'Guardando…';
+
+  const resultado = await crearTurnoRemoto(turno);
+
+  btn.textContent = 'Confirmar turno';
+
+  if (!resultado.ok) {
+    msg.textContent = 'No se pudo guardar el turno. Probá de nuevo en unos segundos.';
+    msg.classList.add('is-error');
+    updateSubmitState();
+    return;
+  }
 
   msg.textContent = `Turno confirmado para ${nombre} ${apellido} el ${formatDisplayDate(state.fecha)} (${horario}) en ${state.sede}.`;
   msg.classList.add('is-success');
@@ -253,10 +407,11 @@ document.getElementById('form-turno').addEventListener('submit', (e) => {
 // --- Panel ---
 
 function renderPanel() {
-  const turnos = cargarTurnos()
+  const turnos = state.turnos
     .slice()
     .sort((a, b) => (a.fecha < b.fecha ? 1 : a.fecha > b.fecha ? -1 : 0));
   renderSummary(turnos);
+  renderCharts(turnos);
   renderTabla(turnos);
 }
 
@@ -273,6 +428,79 @@ function renderSummary(turnos) {
   `;
 }
 
+const PALETA_ESTADOS = {
+  Postulado: '#5B6270',
+  Presente: '#2F8558',
+  Ausente: '#C24A3D',
+  Cancelado: '#8A93A3',
+};
+
+const PALETA_SEDES = {
+  Florida: '#2F6690',
+  Merlo: '#3F7D5C',
+  Adrogué: '#B9862B',
+};
+
+function renderCharts(turnos) {
+  const ctxEstados = document.getElementById('chart-estados');
+  const ctxSedes = document.getElementById('chart-sedes');
+
+  if (!turnos.length) {
+    if (chartEstados) { chartEstados.destroy(); chartEstados = null; }
+    if (chartSedes) { chartSedes.destroy(); chartSedes = null; }
+    return;
+  }
+
+  const countsEstado = { Postulado: 0, Presente: 0, Ausente: 0, Cancelado: 0 };
+  turnos.forEach((t) => { countsEstado[t.estado] = (countsEstado[t.estado] || 0) + 1; });
+
+  const countsSede = { Florida: 0, Merlo: 0, Adrogué: 0 };
+  turnos.forEach((t) => { if (countsSede[t.sede] !== undefined) countsSede[t.sede] += 1; });
+
+  if (typeof Chart === 'undefined') return;
+
+  if (chartEstados) chartEstados.destroy();
+  chartEstados = new Chart(ctxEstados, {
+    type: 'doughnut',
+    data: {
+      labels: Object.keys(countsEstado),
+      datasets: [{
+        data: Object.values(countsEstado),
+        backgroundColor: Object.keys(countsEstado).map((k) => PALETA_ESTADOS[k]),
+        borderWidth: 0,
+      }],
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 11.5 } } },
+      },
+      cutout: '62%',
+    },
+  });
+
+  if (chartSedes) chartSedes.destroy();
+  chartSedes = new Chart(ctxSedes, {
+    type: 'bar',
+    data: {
+      labels: Object.keys(countsSede),
+      datasets: [{
+        data: Object.values(countsSede),
+        backgroundColor: Object.keys(countsSede).map((k) => PALETA_SEDES[k]),
+        borderRadius: 6,
+        maxBarThickness: 46,
+      }],
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { display: false } },
+      scales: {
+        y: { beginAtZero: true, ticks: { precision: 0 } },
+      },
+    },
+  });
+}
+
 function renderTabla(turnos) {
   const sedeF = document.getElementById('filtro-sede').value;
   const estadoF = document.getElementById('filtro-estado').value;
@@ -283,13 +511,17 @@ function renderTabla(turnos) {
   );
 
   if (!filtrados.length) {
-    tbody.innerHTML = '<tr class="table-empty"><td colspan="5">No hay turnos con estos filtros.</td></tr>';
+    tbody.innerHTML = '<tr class="table-empty"><td colspan="6">No hay turnos con estos filtros.</td></tr>';
     return;
   }
 
   tbody.innerHTML = filtrados.map((t) => `
     <tr>
       <td>${escapeHtml(t.nombre)} ${escapeHtml(t.apellido)}</td>
+      <td class="contact-cell">
+        <span class="mail">${escapeHtml(t.mail)}</span>
+        <span class="cel">${escapeHtml(t.celular)}</span>
+      </td>
       <td><span class="tag tag-${sedeSlug(t.sede)}">${t.sede}</span></td>
       <td>${formatDisplayDate(t.fecha)}</td>
       <td>${t.horario}</td>
@@ -306,19 +538,29 @@ function renderTabla(turnos) {
   });
 }
 
-function updateEstado(id, estado, selectEl) {
-  const turnos = cargarTurnos();
-  const t = turnos.find((t) => t.id === id);
-  if (!t) return;
-  t.estado = estado;
-  guardarTurnos(turnos);
+async function updateEstado(id, estado, selectEl) {
+  selectEl.disabled = true;
+  const resultado = await actualizarEstadoRemoto(id, estado);
+  selectEl.disabled = false;
+
+  if (!resultado.ok) {
+    alert('No se pudo actualizar el estado en Google Sheets. Probá de nuevo.');
+    renderTabla(state.turnos);
+    return;
+  }
+
   selectEl.className = `estado-select estado-${estadoSlug(estado)}`;
-  renderSummary(turnos);
+  renderSummary(state.turnos);
+  renderCharts(state.turnos);
 }
 
-document.getElementById('filtro-sede').addEventListener('change', () => renderTabla(cargarTurnos()));
-document.getElementById('filtro-estado').addEventListener('change', () => renderTabla(cargarTurnos()));
+document.getElementById('filtro-sede').addEventListener('change', () => renderTabla(state.turnos));
+document.getElementById('filtro-estado').addEventListener('change', () => renderTabla(state.turnos));
 
 // --- Init ---
 
-updateSubmitState();
+(async function init() {
+  updateSubmitState();
+  await obtenerTurnos({ silencioso: true });
+  renderCalendar();
+})();

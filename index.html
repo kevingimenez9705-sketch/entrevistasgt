@@ -18,10 +18,13 @@
         <p>Florida · Merlo · Adrogué</p>
       </div>
     </div>
-    <nav class="tabs" role="tablist">
-      <button class="tab is-active" data-view="reservar" role="tab" aria-selected="true">Reservar turno</button>
-      <button class="tab" data-view="panel" role="tab" aria-selected="false">Panel</button>
-    </nav>
+    <div class="header-right">
+      <span class="sync-status" id="sync-status"><i class="sync-dot"></i><span id="sync-status-label">Sin conectar</span></span>
+      <nav class="tabs" role="tablist">
+        <button class="tab is-active" data-view="reservar" role="tab" aria-selected="true">Reservar turno</button>
+        <button class="tab" data-view="panel" role="tab" aria-selected="false">Panel</button>
+      </nav>
+    </div>
   </header>
 
   <main>
@@ -29,6 +32,8 @@
     <!-- VISTA: RESERVAR -->
     <section id="view-reservar" class="view is-active">
       <form id="form-turno" novalidate>
+
+        <p class="form-section-title">Datos del postulante</p>
 
         <div class="field-row">
           <label class="field">
@@ -41,6 +46,19 @@
           </label>
         </div>
 
+        <div class="field-row">
+          <label class="field">
+            <span class="field-label">Mail corporativo</span>
+            <input type="email" id="mail" autocomplete="email" placeholder="nombre@empresa.com" required>
+          </label>
+          <label class="field">
+            <span class="field-label">Celular</span>
+            <input type="tel" id="celular" autocomplete="tel" placeholder="11 5555 5555" required>
+          </label>
+        </div>
+
+        <p class="form-section-title">Turno</p>
+
         <div class="field">
           <span class="field-label">Sede</span>
           <div class="sede-picker" id="sede-picker">
@@ -51,7 +69,7 @@
         </div>
 
         <div class="field calendar-field" id="calendar-field" hidden>
-          <span class="field-label">Fecha</span>
+          <span class="field-label">Fecha (lunes a viernes)</span>
           <div class="calendar">
             <div class="calendar-header">
               <button type="button" class="cal-nav" id="cal-prev" aria-label="Mes anterior">‹</button>
@@ -59,7 +77,7 @@
               <button type="button" class="cal-nav" id="cal-next" aria-label="Mes siguiente">›</button>
             </div>
             <div class="calendar-weekdays">
-              <span>L</span><span>M</span><span>M</span><span>J</span><span>V</span><span>S</span><span>D</span>
+              <span>L</span><span>M</span><span>M</span><span>J</span><span>V</span>
             </div>
             <div class="calendar-grid" id="calendar-grid" aria-live="polite"></div>
             <p class="calendar-legend">
@@ -97,7 +115,23 @@
     <!-- VISTA: PANEL -->
     <section id="view-panel" class="view">
 
+      <div class="panel-toolbar">
+        <h2>Informe</h2>
+        <button type="button" class="btn-secondary" id="btn-refrescar">Actualizar desde Sheets</button>
+      </div>
+
       <div class="panel-summary" id="panel-summary"></div>
+
+      <div class="charts-grid">
+        <div class="chart-card">
+          <h3>Estado de los postulantes</h3>
+          <canvas id="chart-estados"></canvas>
+        </div>
+        <div class="chart-card">
+          <h3>Turnos por sede</h3>
+          <canvas id="chart-sedes"></canvas>
+        </div>
+      </div>
 
       <div class="panel-filters">
         <select id="filtro-sede">
@@ -119,7 +153,8 @@
         <table id="tabla-turnos">
           <thead>
             <tr>
-              <th>Gerente</th>
+              <th>Postulante</th>
+              <th>Contacto</th>
               <th>Sede</th>
               <th>Fecha</th>
               <th>Horario</th>
@@ -127,7 +162,7 @@
             </tr>
           </thead>
           <tbody id="tabla-turnos-body">
-            <tr class="table-empty"><td colspan="5">Todavía no hay turnos cargados.</td></tr>
+            <tr class="table-empty"><td colspan="6">Todavía no hay turnos cargados.</td></tr>
           </tbody>
         </table>
       </div>
@@ -137,6 +172,8 @@
   </main>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script src="config.js"></script>
 <script src="app.js"></script>
 </body>
 </html>
