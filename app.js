@@ -194,6 +194,7 @@ function selectSede(sede) {
   });
 
   document.getElementById('calendar-field').hidden = false;
+  document.getElementById('turno-placeholder').hidden = true;
   document.getElementById('horario-field').hidden = true;
   document.getElementById('occupancy-note').hidden = true;
   document.querySelectorAll('input[name="horario"]').forEach((r) => { r.checked = false; });
