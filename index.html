@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Turnos de Selección — Florida · Merlo · Adrogué</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<div class="app">
+
+  <header class="app-header">
+    <div class="brand">
+      <span class="brand-mark">TS</span>
+      <div class="brand-text">
+        <h1>Turnos de Selección</h1>
+        <p>Florida · Merlo · Adrogué</p>
+      </div>
+    </div>
+    <nav class="tabs" role="tablist">
+      <button class="tab is-active" data-view="reservar" role="tab" aria-selected="true">Reservar turno</button>
+      <button class="tab" data-view="panel" role="tab" aria-selected="false">Panel</button>
+    </nav>
+  </header>
+
+  <main>
+
+    <!-- VISTA: RESERVAR -->
+    <section id="view-reservar" class="view is-active">
+      <form id="form-turno" novalidate>
+
+        <div class="field-row">
+          <label class="field">
+            <span class="field-label">Nombre</span>
+            <input type="text" id="nombre" autocomplete="given-name" required>
+          </label>
+          <label class="field">
+            <span class="field-label">Apellido</span>
+            <input type="text" id="apellido" autocomplete="family-name" required>
+          </label>
+        </div>
+
+        <div class="field">
+          <span class="field-label">Sede</span>
+          <div class="sede-picker" id="sede-picker">
+            <button type="button" class="sede-chip sede-florida" data-sede="Florida">Florida</button>
+            <button type="button" class="sede-chip sede-merlo" data-sede="Merlo">Merlo</button>
+            <button type="button" class="sede-chip sede-adrogue" data-sede="Adrogué">Adrogué</button>
+          </div>
+        </div>
+
+        <div class="field calendar-field" id="calendar-field" hidden>
+          <span class="field-label">Fecha</span>
+          <div class="calendar">
+            <div class="calendar-header">
+              <button type="button" class="cal-nav" id="cal-prev" aria-label="Mes anterior">‹</button>
+              <span id="cal-month-label"></span>
+              <button type="button" class="cal-nav" id="cal-next" aria-label="Mes siguiente">›</button>
+            </div>
+            <div class="calendar-weekdays">
+              <span>L</span><span>M</span><span>M</span><span>J</span><span>V</span><span>S</span><span>D</span>
+            </div>
+            <div class="calendar-grid" id="calendar-grid" aria-live="polite"></div>
+            <p class="calendar-legend">
+              <span><i class="dot dot-open"></i>hay cupo</span>
+              <span><i class="dot dot-full"></i>completo</span>
+            </p>
+          </div>
+        </div>
+
+        <p class="occupancy-note" id="occupancy-note" hidden></p>
+
+        <div class="field" id="horario-field" hidden>
+          <span class="field-label">Horario</span>
+          <div class="horario-picker" id="horario-picker">
+            <label class="horario-option">
+              <input type="radio" name="horario" value="9 a 13hs">
+              <span>9 a 13hs</span>
+            </label>
+            <label class="horario-option">
+              <input type="radio" name="horario" value="14 a 18hs">
+              <span>14 a 18hs</span>
+            </label>
+            <label class="horario-option">
+              <input type="radio" name="horario" value="9 a 18hs">
+              <span>9 a 18hs</span>
+            </label>
+          </div>
+        </div>
+
+        <button type="submit" class="btn-primary" id="btn-submit" disabled>Confirmar turno</button>
+        <p class="form-message" id="form-message" role="status"></p>
+      </form>
+    </section>
+
+    <!-- VISTA: PANEL -->
+    <section id="view-panel" class="view">
+
+      <div class="panel-summary" id="panel-summary"></div>
+
+      <div class="panel-filters">
+        <select id="filtro-sede">
+          <option value="">Todas las sedes</option>
+          <option value="Florida">Florida</option>
+          <option value="Merlo">Merlo</option>
+          <option value="Adrogué">Adrogué</option>
+        </select>
+        <select id="filtro-estado">
+          <option value="">Todos los estados</option>
+          <option value="Postulado">Postulado</option>
+          <option value="Presente">Presente</option>
+          <option value="Ausente">Ausente</option>
+          <option value="Cancelado">Cancelado</option>
+        </select>
+      </div>
+
+      <div class="table-wrap">
+        <table id="tabla-turnos">
+          <thead>
+            <tr>
+              <th>Gerente</th>
+              <th>Sede</th>
+              <th>Fecha</th>
+              <th>Horario</th>
+              <th>Estado</th>
+            </tr>
+          </thead>
+          <tbody id="tabla-turnos-body">
+            <tr class="table-empty"><td colspan="5">Todavía no hay turnos cargados.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+    </section>
+
+  </main>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
