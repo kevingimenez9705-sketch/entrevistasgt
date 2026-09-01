@@ -41,6 +41,11 @@
 
 * { box-sizing: border-box; }
 
+/* .field / .form-col, etc. ponen display:block o flex por su cuenta, lo que
+   pisa el atributo "hidden" nativo (una regla de autor le gana a la del
+   user-agent aunque tengan la misma especificidad). Esto lo deja firme. */
+[hidden] { display: none !important; }
+
 body {
   margin: 0;
   background: var(--color-bg);
