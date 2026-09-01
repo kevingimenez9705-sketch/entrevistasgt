@@ -77,6 +77,15 @@ body {
 
 .brand { display: flex; align-items: center; gap: 14px; }
 
+.brand-logo {
+  height: 44px;
+  width: 44px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+  box-shadow: var(--shadow-sm);
+}
+
 .brand-mark {
   width: 44px;
   height: 44px;
@@ -172,6 +181,8 @@ body {
 
 .view { display: none; }
 .view.is-active { display: block; }
+
+.view.is-active.view-centrada { display: flex; justify-content: center; }
 
 .banner {
   border: 1px solid var(--color-border);
@@ -606,7 +617,14 @@ tr:last-child td { border-bottom: none; }
 .tag-estado-cancelado { background: var(--estado-cancelado-soft); color: var(--estado-cancelado); }
 
 @media (max-width: 560px) {
+  .app { padding: 18px 12px 60px; }
   .field-row { flex-direction: column; gap: 0; }
-  .app-header { flex-direction: column; align-items: flex-start; }
+  .app-header { flex-direction: column; align-items: flex-start; padding: 16px; }
+  .header-right { width: 100%; justify-content: space-between; }
   .panel-toolbar { flex-direction: column; align-items: flex-start; }
+  #form-turno { padding: 20px; max-width: 100%; }
+  .calendar { padding: 10px; }
+  .cal-day { font-size: 12px; }
+  .brand-text h1 { font-size: 18px; }
+  .brand-mark, .brand-logo { height: 38px; width: 38px; }
 }

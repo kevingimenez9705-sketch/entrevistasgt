@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Turnos de Selección — Florida · Merlo · Adrogué</title>
-<link rel="stylesheet" href="styles.css?v=2">
+<title>Postulación a jornada de entrevista</title>
+<link rel="stylesheet" href="styles.css?v=3">
 </head>
 <body>
 
@@ -12,9 +12,12 @@
 
   <header class="app-header">
     <div class="brand">
-      <span class="brand-mark">TS</span>
+      <img class="brand-logo" id="brand-logo" src="assets/logo.png" alt="Sabores Express" hidden
+           onload="this.hidden=false; document.getElementById('brand-mark').hidden=true;"
+           onerror="this.hidden=true;">
+      <span class="brand-mark" id="brand-mark">TS</span>
       <div class="brand-text">
-        <h1>Turnos de Selección</h1>
+        <h1>Postulación a jornada de entrevista</h1>
         <p>Florida · Merlo · Adrogué</p>
       </div>
     </div>
@@ -30,7 +33,7 @@
   <main>
 
     <!-- VISTA: RESERVAR -->
-    <section id="view-reservar" class="view is-active">
+    <section id="view-reservar" class="view is-active view-centrada">
       <form id="form-turno" novalidate>
 
         <p class="form-section-title">Datos del postulante</p>
@@ -176,7 +179,7 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
-<script src="config.js?v=2"></script>
-<script src="app.js?v=2"></script>
+<script src="config.js?v=3"></script>
+<script src="app.js?v=3"></script>
 </body>
 </html>
