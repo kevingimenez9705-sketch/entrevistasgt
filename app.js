@@ -410,16 +410,16 @@ function renderSummary(turnos) {
 }
 
 const PALETA_ESTADOS = {
-  Postulado: '#8A93A3',
-  Presente: '#2F8558',
-  Ausente: '#C24A3D',
-  Cancelado: '#C7D0DA',
+  Postulado: '#2A78D6',
+  Presente: '#0F8F5F',
+  Ausente: '#D0483F',
+  Cancelado: '#B7C0CC',
 };
 
 const PALETA_SEDES = {
-  Florida: '#2F6690',
-  Merlo: '#3F7D5C',
-  Adrogué: '#B9862B',
+  Florida: '#2A78D6',
+  Merlo: '#EB6834',
+  Adrogué: '#1BAF7A',
 };
 
 // Dibuja el total de postulantes en el centro de la dona.
