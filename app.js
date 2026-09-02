@@ -431,10 +431,26 @@ const PALETA_ESTADOS = {
   Cancelado: '#7C5CBF',
 };
 
+// Versión pastel de la misma paleta (igual que el fondo de las etiquetas
+// "chip" de la tabla) — los gráficos rellenan con este tono suave y usan
+// el color sólido de arriba solo como borde/leyenda.
+const PALETA_ESTADOS_SUAVE = {
+  Postulado: '#E9EAEC',
+  Presente: '#E4F3EA',
+  Ausente: '#FBEAE8',
+  Cancelado: '#EFEAFA',
+};
+
 const PALETA_SEDES = {
   Florida: '#2F6690',
   Merlo: '#3F7D5C',
   Adrogué: '#B9862B',
+};
+
+const PALETA_SEDES_SUAVE = {
+  Florida: '#E7EFF5',
+  Merlo: '#E7F1EB',
+  Adrogué: '#F6EEDE',
 };
 
 // Dibuja el total de postulantes en el centro de la dona.
@@ -512,9 +528,9 @@ function renderCharts(turnos) {
       labels: Object.keys(countsEstado),
       datasets: [{
         data: Object.values(countsEstado),
-        backgroundColor: Object.keys(countsEstado).map((k) => PALETA_ESTADOS[k]),
-        borderColor: '#fff',
-        borderWidth: 2,
+        backgroundColor: Object.keys(countsEstado).map((k) => PALETA_ESTADOS_SUAVE[k]),
+        borderColor: Object.keys(countsEstado).map((k) => PALETA_ESTADOS[k]),
+        borderWidth: 1.5,
         spacing: 3,
         hoverOffset: 6,
       }],
@@ -550,8 +566,13 @@ function renderCharts(turnos) {
         data: Object.values(countsSede),
         backgroundColor(context) {
           const key = Object.keys(countsSede)[context.dataIndex];
-          return degradado(context.chart.ctx, context.chart.chartArea, PALETA_SEDES[key]);
+          return degradado(context.chart.ctx, context.chart.chartArea, PALETA_SEDES_SUAVE[key]);
         },
+        borderColor(context) {
+          const key = Object.keys(countsSede)[context.dataIndex];
+          return PALETA_SEDES[key];
+        },
+        borderWidth: 1.5,
         borderRadius: 8,
         maxBarThickness: 52,
       }],
