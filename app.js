@@ -46,6 +46,17 @@ function guardarCache(turnos) {
   }
 }
 
+const ESTADOS_VALIDOS = ['Postulado', 'Presente', 'Ausente', 'Cancelado'];
+
+// La hoja de cálculo puede traer el estado con espacios o mayúsculas
+// distintas ("cancelado ", "CANCELADO"); sin esto cada variante se cuenta
+// como un estado aparte y termina como una porción negra sin color asignado.
+function normalizarEstado(valor) {
+  const limpio = String(valor ?? '').trim();
+  const match = ESTADOS_VALIDOS.find((e) => e.toLowerCase() === limpio.toLowerCase());
+  return match || limpio || 'Postulado';
+}
+
 function normalizarTurno(raw) {
   return {
     id: String(raw.id ?? raw.ID ?? ''),
@@ -56,7 +67,7 @@ function normalizarTurno(raw) {
     sede: raw.sede ?? raw.Sede ?? '',
     fecha: raw.fecha ?? raw.Fecha ?? '',
     horario: raw.horario ?? raw.Horario ?? '',
-    estado: raw.estado ?? raw.Estado ?? 'Postulado',
+    estado: normalizarEstado(raw.estado ?? raw.Estado ?? 'Postulado'),
     creadoEn: raw.creadoEn ?? raw['Creado el'] ?? new Date().toISOString(),
   };
 }
@@ -409,17 +420,21 @@ function renderSummary(turnos) {
   `;
 }
 
+// Mismos tonos que las etiquetas de estado/sede del panel (ver --estado-*
+// y --sede-* en styles.css), para que el gráfico y la tabla se lean como
+// un mismo sistema. Cancelado tenía un gris casi igual al de Postulado;
+// ahora usa un violeta propio para distinguirse a simple vista.
 const PALETA_ESTADOS = {
-  Postulado: '#2A78D6',
-  Presente: '#0F8F5F',
-  Ausente: '#D0483F',
-  Cancelado: '#B7C0CC',
+  Postulado: '#5B6270',
+  Presente: '#2F8558',
+  Ausente: '#C24A3D',
+  Cancelado: '#7C5CBF',
 };
 
 const PALETA_SEDES = {
-  Florida: '#2A78D6',
-  Merlo: '#EB6834',
-  Adrogué: '#1BAF7A',
+  Florida: '#2F6690',
+  Merlo: '#3F7D5C',
+  Adrogué: '#B9862B',
 };
 
 // Dibuja el total de postulantes en el centro de la dona.
