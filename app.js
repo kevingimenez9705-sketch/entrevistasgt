@@ -431,14 +431,14 @@ const PALETA_ESTADOS = {
   Cancelado: '#7C5CBF',
 };
 
-// Versión pastel de la misma paleta (igual que el fondo de las etiquetas
-// "chip" de la tabla) — los gráficos rellenan con este tono suave y usan
-// el color sólido de arriba solo como borde/leyenda.
+// Versión pastel (un poco más marcada que el fondo de las etiquetas
+// "chip" de la tabla, para que se note en el gráfico) — rellenan con
+// este tono suave y usan el color sólido de arriba solo como borde/leyenda.
 const PALETA_ESTADOS_SUAVE = {
-  Postulado: '#E9EAEC',
-  Presente: '#E4F3EA',
-  Ausente: '#FBEAE8',
-  Cancelado: '#EFEAFA',
+  Postulado: '#B7BAC1',
+  Presente: '#A5CDB7',
+  Ausente: '#E7B2AC',
+  Cancelado: '#C7B8E5',
 };
 
 const PALETA_SEDES = {
@@ -448,9 +448,9 @@ const PALETA_SEDES = {
 };
 
 const PALETA_SEDES_SUAVE = {
-  Florida: '#E7EFF5',
-  Merlo: '#E7F1EB',
-  Adrogué: '#F6EEDE',
+  Florida: '#A7BFD2',
+  Merlo: '#ACC8B9',
+  Adrogué: '#E1CA9F',
 };
 
 // Dibuja el total de postulantes en el centro de la dona.
