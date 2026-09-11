@@ -160,6 +160,20 @@ function esFinDeSemana(d) {
   return day === 0 || day === 6;
 }
 
+const DIAS_HABILES_ANTICIPACION = 4;
+
+// Primer día hábil disponible para postularse: hoy + N días hábiles
+// (lunes a viernes), para que nadie pueda anotarse de un día para el otro.
+function primeraFechaHabilDisponible(desde, diasHabiles) {
+  const d = new Date(desde);
+  let contados = 0;
+  while (contados < diasHabiles) {
+    d.setDate(d.getDate() + 1);
+    if (!esFinDeSemana(d)) contados++;
+  }
+  return d;
+}
+
 function contarOcupados(turnos, sede, fecha) {
   return turnos.filter((t) => t.sede === sede && t.fecha === fecha && t.estado !== 'Cancelado').length;
 }
@@ -232,6 +246,7 @@ function renderCalendar() {
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const today = new Date();
   today.setHours(0, 0, 0, 0);
+  const minFecha = primeraFechaHabilDisponible(today, DIAS_HABILES_ANTICIPACION);
 
   for (let i = 0; i < startOffset; i++) {
     const empty = document.createElement('div');
@@ -247,7 +262,7 @@ function renderCalendar() {
     btn.className = 'cal-day';
     btn.textContent = String(day);
 
-    const isPast = d < today;
+    const isPast = d < minFecha;
     const isWeekend = esFinDeSemana(d);
     const count = state.sede ? contarOcupados(turnos, state.sede, iso) : 0;
     const isFull = count >= CUPO_POR_SEDE_Y_FECHA;
@@ -355,6 +370,16 @@ document.getElementById('form-turno').addEventListener('submit', async (e) => {
   const mail = document.getElementById('mail').value.trim();
   const celular = document.getElementById('celular').value.trim();
   const horario = document.querySelector('input[name="horario"]:checked').value;
+
+  const hoy = new Date();
+  hoy.setHours(0, 0, 0, 0);
+  const minFecha = primeraFechaHabilDisponible(hoy, DIAS_HABILES_ANTICIPACION);
+  if (new Date(`${state.fecha}T00:00:00`) < minFecha) {
+    msg.textContent = `Elegí una fecha con al menos ${DIAS_HABILES_ANTICIPACION} días hábiles de anticipación.`;
+    msg.classList.add('is-error');
+    resetForm();
+    return;
+  }
 
   const ocupados = contarOcupados(state.turnos, state.sede, state.fecha);
   if (ocupados >= CUPO_POR_SEDE_Y_FECHA) {
