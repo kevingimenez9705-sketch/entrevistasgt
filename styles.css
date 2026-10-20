@@ -524,6 +524,40 @@ select:focus-visible {
   color: var(--color-ink-soft);
 }
 
+.summary-card .num small {
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-ink-faint);
+}
+
+.summary-empresa .progress-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.summary-empresa .progress-row b {
+  font-size: 11.5px;
+  color: var(--estado-presente);
+}
+
+.summary-empresa .progress {
+  flex: 1;
+  height: 5px;
+  border-radius: 999px;
+  background: var(--estado-presente-soft);
+  overflow: hidden;
+}
+
+.summary-empresa .progress i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--estado-presente);
+}
+
 .charts-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
