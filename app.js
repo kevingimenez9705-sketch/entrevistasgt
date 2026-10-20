@@ -432,16 +432,54 @@ function renderPanel() {
   renderTabla(turnos);
 }
 
+// Universo de posibles postulantes por empresa. La empresa sale del dominio
+// del mail corporativo (ej. florida@extremas.com.ar → Extremas).
+const EMPRESAS = [
+  { nombre: 'Sabores', dominio: 'sabores', posibles: 461 },
+  { nombre: 'Extremas', dominio: 'extremas', posibles: 247 },
+];
+
+function empresaDeMail(mail) {
+  const dominio = (String(mail).split('@')[1] || '').toLowerCase();
+  return EMPRESAS.find((e) => dominio.includes(e.dominio)) || null;
+}
+
+// "Vinieron" = personas distintas (por mail) con al menos un turno Presente,
+// así alguien que se presentó dos veces no cuenta doble contra el universo.
+function contarVinieron(turnos, empresa) {
+  const mails = new Set(
+    turnos
+      .filter((t) => t.estado === 'Presente' && empresaDeMail(t.mail) === empresa)
+      .map((t) => String(t.mail).trim().toLowerCase())
+  );
+  return mails.size;
+}
+
 function renderSummary(turnos) {
   const el = document.getElementById('panel-summary');
   const counts = { Postulado: 0, Presente: 0, Ausente: 0, Cancelado: 0 };
   turnos.forEach((t) => { counts[t.estado] = (counts[t.estado] || 0) + 1; });
+
+  const cardsEmpresas = EMPRESAS.map((e) => {
+    const vinieron = contarVinieron(turnos, e);
+    const pct = Math.round((vinieron / e.posibles) * 100);
+    return `
+      <div class="summary-card summary-empresa">
+        <span class="num">${vinieron}<small> / ${e.posibles}</small></span>
+        <span class="lbl">Vinieron de ${e.nombre}</span>
+        <span class="progress-row">
+          <span class="progress"><i style="width:${Math.min(pct, 100)}%"></i></span>
+          <b>${pct}%</b>
+        </span>
+      </div>`;
+  }).join('');
 
   el.innerHTML = `
     <div class="summary-card"><span class="num">${turnos.length}</span><span class="lbl">Total postulados</span></div>
     <div class="summary-card"><span class="num">${counts.Presente}</span><span class="lbl">Presentes</span></div>
     <div class="summary-card"><span class="num">${counts.Ausente}</span><span class="lbl">Ausentes</span></div>
     <div class="summary-card"><span class="num">${counts.Cancelado}</span><span class="lbl">Cancelados</span></div>
+    ${cardsEmpresas}
   `;
 }
 
